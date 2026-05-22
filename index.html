@@ -74,7 +74,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .badge-sound{background:#F0EDE6;color:#5C5449;font-weight:500}
 
 /* BIG TONGUE TWISTER TEXT */
-.tw-text{font-family:'Lora',serif;font-size:clamp(22px,3.5vw,34px);line-height:1.75;color:var(--text);margin-bottom:24px;font-weight:400}
+.tw-text{font-family:'Lora',serif;font-size:clamp(22px,3.5vw,34px);line-height:1.75;color:var(--text);margin-bottom:24px;font-weight:400;overflow-wrap:break-word}
 
 /* STATUS + ACTIONS */
 .card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -439,6 +439,7 @@ function renderList(){
   const c=document.getElementById('list-container');
   if(filtered.length===0){c.innerHTML='<div class="empty"><p>No hay trabalenguas con estos filtros.</p></div>';return;}
   c.innerHTML=filtered.map(cardHTML).join('');
+hyphenate();
 }
 
 function renderToday(){
@@ -472,7 +473,7 @@ function renderToday(){
   </div>`;
 }
 
-function renderAll(){updateStats();renderList();renderToday();}
+function renderAll(){updateStats();renderList();renderToday();setTimeout(hyphenate,50);}
 
 function setFilter(f,btn){
   currentFilter=f;
@@ -551,7 +552,7 @@ async function generate(){
     errEl.style.display='block';
     errEl.textContent='Error al generar. Verifica tu API key o usa "Copiar prompt".';
   }
-  btn.disabled=false;btn.innerHTML='Generar 5';
+  btn.disabled=false;btn.innerHTML='Generar 5';setTimeout(hyphenate,50);
 }
 
 function addFromGen(i,encoded){
@@ -560,6 +561,40 @@ function addFromGen(i,encoded){
   save();updateStats();
   const btn=document.getElementById('gen-add-'+i);
   if(btn){btn.className='btn-add-gen done';btn.textContent='✓ Agregado';}
+}
+
+// Spanish syllabification — inserts soft hyphens at correct syllable breaks
+function syllabify(word) {
+  if (word.length <= 8) return word;
+  const V = 'aeiouáéíóúüAEIOUÁÉÍÓÚÜ';
+  const CLUSTERS = ['tr','dr','br','bl','cr','cl','fr','fl','gr','gl','pr','pl','rr','ll','ch','qu','gu'];
+  const isV = c => c !== undefined && V.includes(c);
+  const isC = c => c !== undefined && /[a-záéíóúüñA-ZÁÉÍÓÚÜÑ]/i.test(c) && !isV(c);
+  const SHY = '\u00AD';
+  let out = '';
+  for (let i = 0; i < word.length; i++) {
+    out += word[i];
+    const a = word[i], b = word[i+1], c = word[i+2], d = word[i+3];
+    if (isV(a)) {
+      // VCV → V|CV  (single consonant goes with next vowel)
+      if (isC(b) && isV(c)) { out += SHY; }
+      // VCCV with cluster → V|CCV  (cluster stays together)
+      else if (isC(b) && isC(c) && isV(d) && CLUSTERS.includes((b+c).toLowerCase())) { out += SHY; }
+    } else if (isC(a) && isC(b) && isV(c) && isV(word[i-1])) {
+      // VCCV without cluster → VC|CV  (split between consonants)
+      if (!CLUSTERS.includes((a+b).toLowerCase())) out += SHY;
+    }
+  }
+  return out;
+}
+
+function hyphenate() {
+  document.querySelectorAll('.tw-text').forEach(el => {
+    if (el.dataset.hyph) return; // already processed
+    const raw = el.textContent;
+    el.innerHTML = raw.replace(/[a-záéíóúüñA-ZÁÉÍÓÚÜÑ]{9,}/gi, w => syllabify(w));
+    el.dataset.hyph = '1';
+  });
 }
 
 load();
