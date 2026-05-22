@@ -1,4 +1,4 @@
-const CACHE = 'trabalenguas-v2';
+const CACHE = 'trabalenguas-v3';
 const BASE = '/trabalenguas';
 const ASSETS = [
   BASE + '/',
